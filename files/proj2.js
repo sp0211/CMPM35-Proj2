@@ -1,3 +1,14 @@
+let tooltipBoxStack = [];
+let tooltipTextStack = [];
+let mealCosts = [];
+let barCounter = 0;
+
+function getCostByID(idTag){
+  let idNum = idTag.slice(3);
+  idNum = parseInt(idNum);
+  return mealCosts[idNum];
+}
+
 function init(data){
 
   let timeOfLastFrame = 0;
@@ -27,6 +38,7 @@ function init(data){
 
   let t = d3.timer(drawGraph, 75);
 
+
   function drawGraph(e){
     let timeSinceLastFrame = e - timeOfLastFrame;
     
@@ -37,7 +49,6 @@ function init(data){
     
     if (e >= 3000){
       currentOuterRadius = finalOuterRadius;
-      console.log(currentOuterRadius);
       t.stop();
     }
 
@@ -58,7 +69,7 @@ function init(data){
     // Map each column in the csv file to a different color
     z = d3.scaleOrdinal()
         .domain(data.columns.slice(1))
-        .range(["#ffd980", "#ffca4f", "#ffba19", "#e39f00"]);
+        .range(["#ffd980", "#ffd70f", "#ffba19", "#e39f00"]);
 
     // Function for drawing bars
     arc = d3.arc()
@@ -144,9 +155,59 @@ function init(data){
       .selectAll("path")
       .data(d => d)
       .join("path")
-        .attr("d", arc)
-        .on("mouseover", d => console.log(d))
-        .on("mouseout", console.log("Mouse out!"))
+        .attr("d", d => {let mealCost = d[1] - d[0];
+                         mealCosts.push(mealCost);
+                         return arc(d);})
+        .attr("id", function(){
+          let id = "bar" + barCounter;
+          barCounter++;
+          return id;
+        })
+        .on("mouseover", e => {
+          console.log(e);
+          let elementID = e.srcElement.id;
+          let mousePos = d3.pointer(e);
+          let x = mousePos[0];
+          let y = mousePos[1];
+          
+          let sum = 0;
+
+          for (let i = 0; i < data.length; i++){
+            let total = 0;
+        
+            for (let j = 1; j < data.columns.length; j++){
+              total += parseInt(data[i][data.columns[j]]);
+            }
+            sum[i] = total;
+          }
+
+          let tooltipBox = d3.select("svg").append("rect")
+                          .attr("x", x + 25)
+                          .attr("y", y)
+                          .attr("width", 200)
+                          .attr("height", 30)
+                          .attr("id", "rect" + x + y)
+                          .attr("fill", "#dedede");
+          
+          let tooltipText = d3.select("svg").append("text")
+                            .attr("x", x + 30)
+                            .attr("y", y + 15)
+                            .attr("text-anchor", "start")
+                            .attr("font-size", "12px")
+                            .attr("fill", "black")
+                            .text("Cost in THB for this meal: " + getCostByID(elementID));
+                            
+          
+          tooltipBoxStack.push(tooltipBox);
+          tooltipTextStack.push(tooltipText);
+        })
+        .on("mouseout", function(){
+          let targetBox = tooltipBoxStack.pop();
+          let targetText = tooltipTextStack.pop();
+          
+          targetBox.remove();
+          targetText.remove();
+        })
       
     // Draw the days axis
     svg.append("g")
